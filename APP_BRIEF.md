@@ -21,7 +21,8 @@ The user adds the people in the group, enters an expense that one person paid fo
 2. Add an expense paid by one person and shared equally by everyone.
 3. Show each person's balance. A positive balance means the person gets money back; a negative balance means the person owes money.
 4. Select or exclude individual expenses using checkboxes in the shared tab.
-5. After everyone has paid their share, clear the tab and reset all balances while keeping the group.
+5. Add expenses in EUR, USD, GBP, CHF, CAD, or AUD using a manually entered conversion rate to EUR for non-euro amounts.
+6. After everyone has paid their share, clear the tab and reset all balances while keeping the group.
 
 ## Demo acceptance criteria
 
@@ -42,13 +43,12 @@ Fictional names and amounts only, for example Ana, Ben and Cem.
 
 - Keeping data after a page reload
 - Unequal splits or expenses for only some people
-- Several currencies
 - Suggesting transfers to settle debts
 - Level-ups from README.md, until the team adds them to this brief
 
 ## Explicit overrides
 
-None. Use the defaults in `AGENTS.md` unless the participant explicitly requests an override.
+- Participant requested mixed-currency expenses, including euros and US dollars. Other repository defaults still apply.
 
 When an override is requested, replace "None" with the specific participant decision and its scope. Only record decisions actually requested or approved by the participant; the agent must not propose alternative stacks or excluded features proactively.
 
@@ -64,3 +64,6 @@ When an override is requested, replace "None" with the specific participant deci
 
 - Each expense has an inclusion checkbox, checked by default. Unchecked expenses stay visible but do not affect totals, shares, or balances. They can be included again.
 - Display each person’s share of the selected total and the amount they already paid alongside their net balance.
+
+- EUR remains the common currency for totals, shares, and balances. Each expense keeps its original amount, currency, and entered rate. Non-euro rates are required, positive, and support up to six decimal places; no live exchange-rate integration. Convert each expense to EUR cents once before combining and splitting.
+- Example with a fictional rate: EUR 60 plus USD 100 at 0.90 EUR per USD totals EUR 150; three people each share EUR 50. Excluding the USD expense leaves EUR 60.

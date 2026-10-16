@@ -2,8 +2,9 @@ import { useState } from 'react'
 import type { FormEvent } from 'react'
 
 type Person = { id: number; name: string }
-type Expense = { description: string; cents: number; payer: number; peopleCount: number; included: boolean }
-const money = (cents: number) => new Intl.NumberFormat('en-IE', { style: 'currency', currency: 'EUR' }).format(cents / 100)
+type Expense = { description: string; cents: number; payer: number; peopleCount: number; included: boolean; currency: string; originalCents: number; rate: number }
+const currencies = [{ code: 'EUR', name: 'Euro' }, { code: 'USD', name: 'US dollar' }, { code: 'GBP', name: 'British pound' }, { code: 'CHF', name: 'Swiss franc' }, { code: 'CAD', name: 'Canadian dollar' }, { code: 'AUD', name: 'Australian dollar' }]
+const money = (cents: number, currency = 'EUR') => new Intl.NumberFormat('en-IE', { style: 'currency', currency, currencyDisplay: 'code' }).format(cents / 100)
 
 // Combine expenses for the same group before rounding to whole cents.
 function calculateShares(expenses: Expense[], peopleCount: number) {
@@ -37,6 +38,8 @@ export default function App() {
   const [personError, setPersonError] = useState('')
   const [expenseError, setExpenseError] = useState('')
   const [settled, setSettled] = useState(false)
+  const [currency, setCurrency] = useState('EUR')
+  const [exchangeRate, setExchangeRate] = useState('')
   const selectedExpenses = expenses.filter(expense => expense.included)
   const total = selectedExpenses.reduce((sum, expense) => sum + expense.cents, 0)
   const shares = calculateShares(expenses, people.length)
@@ -58,9 +61,20 @@ export default function App() {
   function addExpense(event: FormEvent) {
     event.preventDefault()
     const normalized = amount.trim().replace(',', '.')
-    const cents = Math.round(Number(normalized) * 100)
-    if (!/^\d+(\.\d{1,2})?$/.test(normalized) || !Number.isSafeInteger(cents) || cents <= 0 || cents > 100_000_000) {
-      setExpenseError('Enter an amount from €0.01 to €1,000,000 with up to two decimal places.')
+    const originalCents = Math.round(Number(normalized) * 100)
+    if (!/^\d+(\.\d{1,2})?$/.test(normalized) || !Number.isSafeInteger(originalCents) || originalCents <= 0 || originalCents > 100_000_000) {
+      setExpenseError(`Enter an amount from 0.01 to 1,000,000 ${currency} with up to two decimal places.`)
+      return
+    }
+    const normalizedRate = exchangeRate.trim().replace(',', '.')
+    const rate = currency === 'EUR' ? 1 : Number(normalizedRate)
+    if (currency !== 'EUR' && (!/^\d+(\.\d{1,6})?$/.test(normalizedRate) || !Number.isFinite(rate) || rate <= 0)) {
+      setExpenseError(`Enter a positive exchange rate: how many euros equal 1 ${currency}? Use up to six decimal places.`)
+      return
+    }
+    const cents = Math.round(originalCents * rate)
+    if (!Number.isSafeInteger(cents) || cents < 1 || cents > 100_000_000) {
+      setExpenseError('The converted amount must be between EUR 0.01 and EUR 1,000,000. Check the amount and exchange rate.')
       return
     }
     if (payer === '' || !people.some(person => person.id === Number(payer))) {
@@ -71,7 +85,7 @@ export default function App() {
       setExpenseError('Give the expense a short description.')
       return
     }
-    setExpenses([...expenses, { description: description.trim(), cents, payer: Number(payer), peopleCount: people.length, included: true }])
+    setExpenses([...expenses, { description: description.trim(), cents, payer: Number(payer), peopleCount: people.length, included: true, currency, originalCents, rate }])
     setSettled(false)
     setAmount('')
     setDescription('')
@@ -96,11 +110,11 @@ export default function App() {
             {people.length === 0 && <p className="empty">Your group starts here. Add your first person above.</p>}
           </section>
           <section className="card"><div className="heading"><span className="step">02</span><h2>Add an expense</h2></div><p className="hint">One person paid. Everyone shares equally.</p>
-            <form onSubmit={addExpense} noValidate><label htmlFor="description">What was it for?</label><input id="description" value={description} onChange={event => setDescription(event.target.value)} placeholder="e.g. Friday night dinner" maxLength={100} /><div className="field-row"><div><label htmlFor="amount">Amount (€)</label><input id="amount" inputMode="decimal" value={amount} onChange={event => setAmount(event.target.value)} placeholder="0.00" /></div><div><label htmlFor="payer">Paid by</label><select id="payer" value={payer} onChange={event => setPayer(event.target.value)}><option value="" disabled>Choose a person</option>{people.map(person => <option key={person.id} value={person.id}>{person.name}</option>)}</select></div></div>{expenseError && <p className="error" role="alert">{expenseError}</p>}<button className="wide" type="submit">Add expense <span aria-hidden="true">↗</span></button></form>
+            <form onSubmit={addExpense} noValidate><label htmlFor="description">What was it for?</label><input id="description" value={description} onChange={event => setDescription(event.target.value)} placeholder="e.g. Friday night dinner" maxLength={100} /><div className="field-row"><div><label htmlFor="amount">Amount ({currency})</label><input id="amount" inputMode="decimal" value={amount} onChange={event => setAmount(event.target.value)} placeholder="0.00" /></div><div><label htmlFor="payer">Paid by</label><select id="payer" value={payer} onChange={event => setPayer(event.target.value)}><option value="" disabled>Choose a person</option>{people.map(person => <option key={person.id} value={person.id}>{person.name}</option>)}</select></div></div><div className="field-row"><div><label htmlFor="currency">Currency</label><select id="currency" value={currency} onChange={event => { setCurrency(event.target.value); setExchangeRate(''); setExpenseError('') }}>{currencies.map(item => <option key={item.code} value={item.code}>{item.code} — {item.name}</option>)}</select></div>{currency !== 'EUR' && <div><label htmlFor="exchange-rate">1 {currency} = how many EUR?</label><input id="exchange-rate" value={exchangeRate} onChange={event => setExchangeRate(event.target.value)} inputMode="decimal" placeholder="Enter rate" aria-describedby="rate-help" /></div>}</div><p id="rate-help" className="hint">Totals and balances are in EUR. For other currencies, enter the rate from your receipt or bank. Rates are entered manually, not live.</p>{expenseError && <p className="error" role="alert">{expenseError}</p>}<button className="wide" type="submit">Add expense <span aria-hidden="true">↗</span></button></form>
             <p className="footnote">Shared with everyone currently in the group.</p>
           </section>
         </div>
-        <aside className="card balance-card"><div className="heading"><span className="step">03</span><h2>The balance</h2><span className="count">LIVE</span></div><div className="total"><span>Selected total</span><strong>{money(total)}</strong><span>{selectedExpenses.length} selected expenses · {people.length} people</span></div>
+        <aside className="card balance-card"><div className="heading"><span className="step">03</span><h2>The balance</h2><span className="count">LIVE</span></div><div className="total"><span>Selected total · EUR</span><strong>{money(total)}</strong><span>{selectedExpenses.length} selected expenses · {people.length} people</span></div>
           <div aria-live="polite">{people.length === 0 ? <div className="empty-balance"><span aria-hidden="true">↔</span><h3>A little balance goes a long way.</h3><p>Add your group and an expense.<br />Everyone's share will appear here.</p></div> : people.map(person => {
             const paid = selectedExpenses.reduce((sum, expense) => sum + (expense.payer === person.id ? expense.cents : 0), 0)
             const balance = paid - shares[person.id]
@@ -110,9 +124,9 @@ export default function App() {
           <div role="status">{settled && <p className="settled-message">All settled! Previous expenses cleared. Your group is ready for the next meal.</p>}</div>
         </aside>
       </div>
-      <section className="card activity"><div className="heading"><h2>The shared tab</h2><span className="count">{expenses.length} expenses</span></div><p className="hint">Check expenses to include them in the total. Uncheck paid expenses to leave them out; check again to add them back.</p>{expenses.length === 0 ? <p className="empty">No expenses yet. Your next shared memory goes here.</p> : <ul>{expenses.map((expense, index) => <li key={index}><input className="expense-checkbox" type="checkbox" aria-label={`Include ${expense.description}, ${money(expense.cents)}, paid by ${people[expense.payer].name}`} checked={expense.included} onChange={event => {
+      <section className="card activity"><div className="heading"><h2>The shared tab</h2><span className="count">{expenses.length} expenses</span></div><p className="hint">Check expenses to include them in the total. Uncheck paid expenses to leave them out; check again to add them back.</p>{expenses.length === 0 ? <p className="empty">No expenses yet. Your next shared memory goes here.</p> : <ul>{expenses.map((expense, index) => <li key={index}><input className="expense-checkbox" type="checkbox" aria-label={`Include ${expense.description}, ${money(expense.originalCents, expense.currency)}, paid by ${people[expense.payer].name}`} checked={expense.included} onChange={event => {
         setExpenses(expenses.map((item, itemIndex) => itemIndex === index ? { ...item, included: event.target.checked } : item))
-      }} /><div><strong>{expense.description}</strong><p>{people[expense.payer].name} paid · split between {expense.peopleCount}</p></div><strong>{money(expense.cents)}</strong></li>)}</ul>}</section>
+      }} /><div><strong>{expense.description}</strong><p>{people[expense.payer].name} paid · split between {expense.peopleCount}</p></div><div className="expense-amount"><strong>{money(expense.originalCents, expense.currency)}</strong>{expense.currency !== 'EUR' && <><span>≈ {money(expense.cents)}</span><span>1 {expense.currency} = {expense.rate} EUR</span></>}</div></li>)}</ul>}</section>
       <footer>Made for sharing, without the awkward maths.<span>This session only · Refreshing clears your group.</span></footer>
     </main>
   )

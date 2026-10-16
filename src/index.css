@@ -2,3 +2,5 @@
 .settle-tab{margin-top:20px}.settle-tab button{white-space:normal;text-align:center;justify-content:center}.settled-message{color:#42683b;background:#edf3e2;border-radius:9px;padding:14px;font-size:13px;line-height:1.7}
 
 input.expense-checkbox{width:22px;height:22px;flex-shrink:0;accent-color:#284e42;cursor:pointer}.activity li:has(.expense-checkbox:not(:checked)){background:#f8f9f5}.activity li:has(.expense-checkbox:not(:checked))>div{opacity:.65}
+
+.activity li>.expense-amount{flex:0 1 auto;text-align:right;min-width:100px}.expense-amount span{display:block;font-size:11px;color:#717b68;margin-top:6px}.total strong{font-size:clamp(26px,4vw,40px)}@media(max-width:400px){.balance-row{flex-wrap:wrap}.field-row{grid-template-columns:1fr}.activity li{gap:9px}}
